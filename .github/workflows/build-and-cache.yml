@@ -1,0 +1,39 @@
+name: Build and Cache Nix Packages
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+            experimental-features = nix-command flakes
+
+      - name: Configure Cachix
+        if: github.event_name != 'pull_request' && secrets.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v16
+        with:
+          name: ioitiki
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build exported packages
+        run: |
+          nix build \
+            .#codex \
+            .#flyctl \
+            .#zed-editor \
+            .#ib-tws \
+            --accept-flake-config \
+            --print-build-logs

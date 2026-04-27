@@ -1,0 +1,74 @@
+--- a/crates/editor/src/element.rs
++++ b/crates/editor/src/element.rs
+@@ -3626,18 +3626,8 @@
+             return Vec::new();
+         }
+         let highlight_iter = highlight_ranges.iter().cloned();
+-        let selection_iter = selections.iter().flat_map(|(player_color, layouts)| {
+-            let color = player_color.selection;
+-            layouts.iter().filter_map(move |selection_layout| {
+-                if selection_layout.range.start != selection_layout.range.end {
+-                    Some((selection_layout.range.clone(), color))
+-                } else {
+-                    None
+-                }
+-            })
+-        });
+         let mut per_row_map = vec![Vec::new(); rows.len()];
+-        for (range, color) in highlight_iter.chain(selection_iter) {
++        for (range, color) in highlight_iter {
+             let covered_rows = if range.end.column() == 0 {
+                 cmp::max(range.start.row(), rows.start)..cmp::min(range.end.row(), rows.end)
+             } else {
+@@ -6612,7 +6602,7 @@
+                 for selection in selections.iter() {
+                     self.paint_highlighted_range(
+                         selection.range.clone(),
+-                        true,
++                        false,
+                         player_color.selection,
+                         corner_radius,
+                         corner_radius * 2.,
+--- a/crates/terminal_view/src/terminal_element.rs
++++ b/crates/terminal_view/src/terminal_element.rs
+@@ -42,7 +42,7 @@
+     hitbox: Hitbox,
+     batched_text_runs: Vec<BatchedTextRun>,
+     rects: Vec<LayoutRect>,
+-    relative_highlighted_ranges: Vec<(RangeInclusive<AlacPoint>, Hsla)>,
++    relative_highlighted_ranges: Vec<(RangeInclusive<AlacPoint>, Hsla, bool)>,
+     cursor: Option<CursorLayout>,
+     ime_cursor_bounds: Option<Bounds<Pixels>>,
+     background_color: Hsla,
+@@ -1041,11 +1041,11 @@
+                 // searches, highlights to a single range representations
+                 let mut relative_highlighted_ranges = Vec::new();
+                 for search_match in search_matches {
+-                    relative_highlighted_ranges.push((search_match, match_color))
++                    relative_highlighted_ranges.push((search_match, match_color, true))
+                 }
+                 if let Some(selection) = selection {
+                     relative_highlighted_ranges
+-                        .push((selection.start..=selection.end, player_color.selection));
++                        .push((selection.start..=selection.end, player_color.selection, false));
+                 }
+ 
+                 // then have that representation be converted to the appropriate highlight data structure
+@@ -1305,7 +1305,7 @@
+                         rect.paint(origin, &layout.dimensions, window);
+                     }
+ 
+-                    for (relative_highlighted_range, color) in &layout.relative_highlighted_ranges {
++                    for (relative_highlighted_range, color, fill) in &layout.relative_highlighted_ranges {
+                         if let Some((start_y, highlighted_range_lines)) =
+                             to_highlighted_range_lines(relative_highlighted_range, layout, origin)
+                         {
+@@ -1322,7 +1322,7 @@
+                                 color: *color,
+                                 corner_radius: corner_radius,
+                             };
+-                            hr.paint(true, bounds, window);
++                            hr.paint(*fill, bounds, window);
+                         }
+                     }
+ 
