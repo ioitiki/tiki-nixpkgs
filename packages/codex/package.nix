@@ -21,10 +21,20 @@
 let
   # `rusty_v8` tries to download this archive during the build by default.
   # Fetch it up front so the derivation stays sandbox-safe.
-  rustyV8Archive = fetchurl {
-    url = "https://github.com/denoland/rusty_v8/releases/download/v146.4.0/librusty_v8_release_x86_64-unknown-linux-gnu.a.gz";
-    hash = "sha256-5ktNmeSuKTouhGJEqJuAF4uhA4LBP7WRwfppaPUpEVM=";
+  rustyV8ByPlatform = {
+    "x86_64-linux" = {
+      url = "https://github.com/denoland/rusty_v8/releases/download/v146.4.0/librusty_v8_release_x86_64-unknown-linux-gnu.a.gz";
+      hash = "sha256-5ktNmeSuKTouhGJEqJuAF4uhA4LBP7WRwfppaPUpEVM=";
+    };
+    "aarch64-linux" = {
+      url = "https://github.com/denoland/rusty_v8/releases/download/v146.4.0/librusty_v8_release_aarch64-unknown-linux-gnu.a.gz";
+      hash = "sha256-2/FlsHyBvbBUvARrQ9I+afz3vMGkwbW0d2mDpxBi7Ng=";
+    };
   };
+  rustyV8Archive = fetchurl (
+    rustyV8ByPlatform.${stdenv.hostPlatform.system}
+      or (throw "codex: unsupported platform ${stdenv.hostPlatform.system}")
+  );
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "codex";
