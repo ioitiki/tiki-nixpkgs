@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-x86_64:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,5 +35,27 @@ jobs:
             .#flyctl \
             .#zed-editor \
             .#ib-tws \
+            --accept-flake-config \
+            --print-build-logs
+
+  build-aarch64:
+    runs-on: [self-hosted, Linux, ARM64]
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Cachix
+        if: github.event_name != 'pull_request' && secrets.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v16
+        with:
+          name: ioitiki
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build exported packages
+        run: |
+          nix build \
+            .#packages.aarch64-linux.codex \
             --accept-flake-config \
             --print-build-logs
