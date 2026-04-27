@@ -4,7 +4,7 @@ let
   # Download the installer
   twsInstaller = pkgs.fetchurl {
     url = "https://download2.interactivebrokers.com/installers/tws/latest-standalone/tws-latest-standalone-linux-x64.sh";
-    sha256 = "sha256-n//oR6nI/OORd8JFL4tuR4NAq8TVNCoVa1HD2S1bIVo=";
+    sha256 = "sha256-J8zG7kIFTWCihAZkw3iuw49mxMXzcfUn9fa2nvGP4UM=";
   };
 
   # Create an FHS environment for TWS
