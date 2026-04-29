@@ -26,6 +26,7 @@
         kimi-cli = final.callPackage ./packages/kimi-cli/package.nix { };
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
+        warp-oss = final.callPackage ./packages/warp/package.nix { };
         zed-editor = final.callPackage ./packages/zed-editor/package.nix { zed-editor = prev.zed-editor; };
         ib-tws = final.callPackage ./packages/ib-tws/package.nix { };
         openshell = final.callPackage ./packages/openshell/package.nix { };
@@ -48,6 +49,7 @@
             kimi-cli
             flyctl
             tradingagents
+            warp-oss
             zed-editor
             ib-tws
             openshell
