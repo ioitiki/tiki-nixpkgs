@@ -3,15 +3,12 @@
   rustPlatform,
   fetchFromGitHub,
   cmake,
-  copyDesktopItems,
-  curl,
-  perl,
   pkg-config,
   protobuf,
   fontconfig,
-  freetype,
   libgit2,
   openssl,
+  libcap,
   sqlite,
   zlib,
   zstd,
@@ -19,10 +16,8 @@
   alsa-lib,
   libxkbcommon,
   wayland,
-  libglvnd,
   libxcb,
   stdenv,
-  makeFontsConf,
   vulkan-loader,
   envsubst,
   nix-update-script,
@@ -31,8 +26,6 @@
   buildFHSEnv,
   cargo-bundle,
   git,
-  apple-sdk_15,
-  darwinMinVersionHook,
   makeBinaryWrapper,
   nodejs,
   libGL,
@@ -42,12 +35,8 @@
   testers,
   writableTmpDirAsHomeHook,
 
-  withGLES ? false,
   buildRemoteServer ? true,
-  zed-editor,
 }:
-
-assert withGLES -> stdenv.hostPlatform.isLinux;
 
 let
   channel = "stable";
@@ -76,6 +65,9 @@ let
           glibc
           # required by at least https://github.com/zed-industries/package-version-server
           openssl
+          # required by at least the Codex CLI agent
+          libcap
+          zlib
         ])
         ++ additionalPkgs pkgs;
 
@@ -103,12 +95,10 @@ let
         '';
       };
     };
-
-  gpu-lib = if withGLES then libglvnd else vulkan-loader;
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "zed-editor";
-  version = "0.231.2";
+  version = "1.0.0";
 
   outputs = [
     "out"
@@ -121,7 +111,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "zed-industries";
     repo = "zed";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-o64xjJKvGzn4H1nMVVbqx+XFxDwHyFwnO+OoNJB04OI=";
+    hash = "sha256-D5V0pvL3WCwhcC8dnNKTXRdnFq8LMZZ0/GDjw8xf95g=";
   };
 
   patches = [
@@ -129,6 +119,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   postPatch = ''
+    # Disable upstream's rustflags overrides to avoid linker issues
+    rm .cargo/config.toml
+
     # Dynamically link WebRTC instead of static
     substituteInPlace $cargoDepsCopy/*/webrtc-sys-*/build.rs \
       --replace-fail "cargo:rustc-link-lib=static=webrtc" "cargo:rustc-link-lib=dylib=webrtc"
@@ -151,34 +144,33 @@ rustPlatform.buildRustPackage (finalAttrs: {
     rm -r $out/git/*/candle-book/
   '';
 
-  cargoHash = "sha256-++2q4zeLBDSW4ooTu7dU77YsuHggeX/sWkvuCb3PF50=";
+  cargoHash = "sha256-xtw7r7VluCEqXWKnxpVk8BPqr+mJV5rB3Eq/PvsKPBk=";
+
+  __structuredAttrs = true;
 
   nativeBuildInputs = [
     cmake
-    copyDesktopItems
-    curl
-    perl
     pkg-config
     protobuf
-    rustPlatform.bindgenHook
     cargo-about
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [ makeBinaryWrapper ]
-  ++ lib.optionals stdenv.hostPlatform.isDarwin [ cargo-bundle ];
+  ++ lib.optionals stdenv.hostPlatform.isDarwin [
+    cargo-bundle
+    rustPlatform.bindgenHook
+  ];
 
   dontUseCmakeConfigure = true;
 
   buildInputs = [
-    curl
-    fontconfig
-    freetype
     libgit2
-    openssl
     sqlite
     zlib
     zstd
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
+    fontconfig
+    openssl
     glib
     alsa-lib
     libxkbcommon
@@ -188,12 +180,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
     libGL
     libx11
     libxext
-  ]
-  ++ lib.optionals stdenv.hostPlatform.isDarwin [
-    apple-sdk_15
-    # ScreenCaptureKit, required by livekit, is only available on 12.3 and up:
-    # https://developer.apple.com/documentation/screencapturekit
-    (darwinMinVersionHook "12.3")
   ];
 
   cargoBuildFlags = [
@@ -217,20 +203,16 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   env = {
     ALLOW_MISSING_LICENSES = true;
+    OPENSSL_NO_VENDOR = true;
+    LIBGIT2_NO_VENDOR = true;
+    LIBSQLITE3_SYS_USE_PKG_CONFIG = true;
     ZSTD_SYS_USE_PKG_CONFIG = true;
-    FONTCONFIG_FILE = makeFontsConf {
-      fontDirectories = [
-        "${finalAttrs.src}/assets/fonts/plex-mono"
-        "${finalAttrs.src}/assets/fonts/plex-sans"
-      ];
-    };
     # Setting this environment variable allows to disable auto-updates
     # https://zed.dev/docs/development/linux#notes-for-packaging-zed
     ZED_UPDATE_EXPLANATION = "Zed has been installed using Nix. Auto-updates have thus been disabled.";
     # Used by `zed --version`
     RELEASE_VERSION = finalAttrs.version;
     LK_CUSTOM_WEBRTC = livekit-libwebrtc;
-    RUSTFLAGS = lib.optionalString withGLES "--cfg gles";
   };
 
   preBuild = ''
@@ -238,8 +220,13 @@ rustPlatform.buildRustPackage (finalAttrs: {
   '';
 
   postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
-    patchelf --add-rpath ${gpu-lib}/lib $out/libexec/*
-    patchelf --add-rpath ${wayland}/lib $out/libexec/*
+    patchelf $out/libexec/zed-editor --add-rpath ${
+      lib.makeLibraryPath [
+        libGL
+        vulkan-loader
+        wayland
+      ]
+    }
     wrapProgram $out/libexec/zed-editor --suffix PATH : ${lib.makeBinPath [ nodejs ]}
   '';
 
@@ -260,21 +247,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     mv $release_target/zed target/release/zed
 
     pushd crates/zed
-
     # Note that this is GNU sed, while Zed's bundle-mac uses BSD sed
     sed -i "s/package.metadata.bundle-stable/package.metadata.bundle/" Cargo.toml
     export CARGO_BUNDLE_SKIP_BUILD=true
     app_path=$(cargo bundle --release | xargs)
-
-    # We're not using Zed's fork of cargo-bundle, so we must manually append their plist extensions
-    # Remove closing tags from Info.plist (last two lines)
-    head -n -2 $app_path/Contents/Info.plist > Info.plist
-    # Append extensions
-    cat resources/info/*.plist >> Info.plist
-    # Add closing tags
-    printf "</dict>\n</plist>\n" >> Info.plist
-    mv Info.plist $app_path/Contents/Info.plist
-
     popd
 
     mkdir -p $out/Applications $out/bin
@@ -291,7 +267,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     install -Dm755 $release_target/zed $out/libexec/zed-editor
     install -Dm755 $release_target/cli $out/bin/zeditor
 
-    install -Dm644 $src/crates/zed/resources/app-icon@2x.png $out/share/icons/hicolor/1024x1024@2x/apps/zed.png
+    install -Dm644 $src/crates/zed/resources/app-icon@2x.png $out/share/icons/hicolor/512x512@2/apps/zed.png
     install -Dm644 $src/crates/zed/resources/app-icon.png $out/share/icons/hicolor/512x512/apps/zed.png
 
     # extracted from https://github.com/zed-industries/zed/blob/v0.141.2/script/bundle-linux (envsubst)
@@ -343,9 +319,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
         package = finalAttrs.finalPackage.remote_server;
         command = "${finalAttrs.remoteServerExecutableName} version";
       };
-    }
-    // lib.optionalAttrs stdenv.hostPlatform.isLinux {
-      withGles = zed-editor.override { withGLES = true; };
     };
   };
 
@@ -357,6 +330,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
     maintainers = with lib.maintainers; [
       GaetanLepage
       niklaskorz
+      mjm
+      schembriaiden
     ];
     mainProgram = "zeditor";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;

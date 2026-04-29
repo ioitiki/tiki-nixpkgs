@@ -27,7 +27,7 @@
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
         warp-oss = final.callPackage ./packages/warp/package.nix { };
-        zed-editor = final.callPackage ./packages/zed-editor/package.nix { zed-editor = prev.zed-editor; };
+        zed-editor = final.callPackage ./packages/zed-editor/package.nix { };
         ib-tws = final.callPackage ./packages/ib-tws/package.nix { };
         openshell = final.callPackage ./packages/openshell/package.nix { };
       };
