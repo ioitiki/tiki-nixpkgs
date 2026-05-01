@@ -7,6 +7,8 @@
   stdenv,
   buildNpmPackage,
   fetchzip,
+  autoPatchelfHook,
+  makeWrapper,
   versionCheckHook,
   writableTmpDirAsHomeHook,
   bubblewrap,
@@ -38,17 +40,26 @@ let
         '';
       };
     };
+  nativePackages = {
+    x86_64-linux = "claude-code-linux-x64";
+    aarch64-linux = "claude-code-linux-arm64";
+    x86_64-darwin = "claude-code-darwin-x64";
+    aarch64-darwin = "claude-code-darwin-arm64";
+  };
+  nativePackageName =
+    nativePackages.${stdenv.hostPlatform.system}
+      or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 in
 buildNpmPackage (finalAttrs: {
   pname = "claude-code";
-  version = "2.1.111";
+  version = "2.1.126";
 
   src = fetchzip {
     url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${finalAttrs.version}.tgz";
-    hash = "sha256-K3qhZXVJ2DIKv7YL9f/CHkuUYnK0lkIR1wjEa+xeSCk=";
+    hash = "sha256-Il9MGrnnIV3i86cU3BjslGEdVodnV50VW3f2DEjSlMk=";
   };
 
-  npmDepsHash = "sha256-6f68qUMnDk6tn+qypVi8bPtNrxbtcf15tHrgtlhEaK4=";
+  npmDepsHash = "sha256-tVQbjW2ZqzuH/MIpT8k5/OHBVLtuKPQt6P20TwBx3Cs=";
 
   strictDeps = true;
 
@@ -58,11 +69,12 @@ buildNpmPackage (finalAttrs: {
     cp ${./package-lock.json} package-lock.json
   '';
 
-  postPatch = ''
-    # https://github.com/anthropics/claude-code/issues/15195
-    substituteInPlace cli.js \
-          --replace-fail '#!/bin/sh' '#!/usr/bin/env sh'
-  '';
+  nativeBuildInputs = [
+    makeWrapper
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [ autoPatchelfHook ];
+
+  buildInputs = lib.optionals stdenv.hostPlatform.isLinux [ stdenv.cc.cc.lib ];
 
   dontNpmBuild = true;
 
@@ -72,7 +84,15 @@ buildNpmPackage (finalAttrs: {
   # https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview#environment-variables
   # The DEV=true env var causes claude to crash with `TypeError: window.WebSocket is not a constructor`
   postInstall = ''
-    wrapProgram $out/bin/claude \
+    claudePackageOut="$out/lib/node_modules/@anthropic-ai/claude-code"
+    nativeBinary="$claudePackageOut/node_modules/@anthropic-ai/${nativePackageName}/claude"
+
+    ln -f "$nativeBinary" "$claudePackageOut/bin/claude.exe" || cp "$nativeBinary" "$claudePackageOut/bin/claude.exe"
+    chmod +x "$claudePackageOut/bin/claude.exe"
+    rm -rf "$claudePackageOut/node_modules"
+
+    rm -f "$out/bin/claude"
+    makeWrapper "$claudePackageOut/bin/claude.exe" "$out/bin/claude" \
       --set DISABLE_AUTOUPDATER 1 \
       --set DISABLE_INSTALLATION_CHECKS 1 \
       --unset DEV \
@@ -116,5 +136,7 @@ buildNpmPackage (finalAttrs: {
       xiaoxiangmoe
     ];
     mainProgram = "claude";
+    platforms = builtins.attrNames nativePackages;
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
   };
 })

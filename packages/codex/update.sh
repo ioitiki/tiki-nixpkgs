@@ -23,4 +23,4 @@ echo "Latest codex version: $version"
 # nix-update handles version, src hash, and cargoHash for Rust packages
 nix-update --flake codex --version="$version" --version-regex '^rust-v(\d+\.\d+\.\d+)$'
 
-nix build "$FLAKE_DIR#codex" --no-link --accept-flake-config
+nix build "$FLAKE_DIR#codex" --no-link --accept-flake-config --print-out-paths | cachix push ioitiki

@@ -10,14 +10,14 @@ cd "$FLAKE_DIR"
 
 version=$(npm view @anthropic-ai/claude-code version)
 
-# Update version and src hash via nix-update (skip lockfile, we handle it ourselves)
-AUTHORIZED=1 NIXPKGS_ALLOW_UNFREE=1 nix-update --flake claude-code --version="$version"
+# Update version and src hash via nix-update (skip lockfile/deps, we handle them ourselves)
+AUTHORIZED=1 NIXPKGS_ALLOW_UNFREE=1 nix-update --src-only --flake claude-code --version="$version"
 
 # Regenerate package-lock.json from the new source
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 curl -sL "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${version}.tgz" | tar xz -C "$tmpdir"
-(cd "$tmpdir/package" && AUTHORIZED=1 npm install --package-lock-only)
+(cd "$tmpdir/package" && npm install --package-lock-only --ignore-scripts)
 cp "$tmpdir/package/package-lock.json" "$SCRIPT_DIR/package-lock.json"
 echo "Regenerated package-lock.json for version $version"
 
@@ -32,4 +32,4 @@ else
   exit 1
 fi
 
-nix build "$FLAKE_DIR#claude-code" --no-link --accept-flake-config
+nix build "$FLAKE_DIR#claude-code" --no-link --accept-flake-config --print-out-paths | cachix push ioitiki
