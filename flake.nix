@@ -3,25 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pyproject-nix = {
-      url = "github:pyproject-nix/pyproject.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    uv2nix = {
-      url = "github:pyproject-nix/uv2nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.pyproject-nix.follows = "pyproject-nix";
-    };
-    pyproject-build-systems = {
-      url = "github:pyproject-nix/build-system-pkgs";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.pyproject-nix.follows = "pyproject-nix";
-      inputs.uv2nix.follows = "uv2nix";
-    };
-    npm-lockfile-fix = {
-      url = "github:jeslie0/npm-lockfile-fix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   nixConfig = {
@@ -32,7 +13,7 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, ... }:
+    { self, nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -45,10 +26,6 @@
         claude-code = final.callPackage ./packages/claude-code/package.nix { };
         codex = final.callPackage ./packages/codex/package.nix { };
         deepagents = final.callPackage ./packages/deepagents/package.nix { };
-        hermes-agent = final.callPackage ./packages/hermes-agent/package.nix {
-          inherit (inputs) uv2nix pyproject-nix pyproject-build-systems;
-          npm-lockfile-fix = inputs.npm-lockfile-fix.packages.${final.stdenv.hostPlatform.system}.default;
-        };
         kimi-cli = final.callPackage ./packages/kimi-cli/package.nix { };
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
@@ -72,7 +49,6 @@
             claude-code
             codex
             deepagents
-            hermes-agent
             kimi-cli
             flyctl
             tradingagents
