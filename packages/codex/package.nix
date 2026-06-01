@@ -38,18 +38,31 @@ let
   );
   rawCodex = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "codex";
-    version = "0.131.0";
+    version = "0.135.0";
 
     src = fetchFromGitHub {
       owner = "openai";
       repo = "codex";
       tag = "rust-v${finalAttrs.version}";
-      hash = "sha256-pWQxDJZO+xbY8aax9QRQRtx/BJw+4CZRL65W3Od4Ep8=";
+      hash = "sha256-7Ak7rpogcN2kNezk7aMdMmkgNyPxH58f6lFdXOd/mgc=";
     };
 
     sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
-    cargoHash = "sha256-CaCYBg8U4pxi3EFBH81k1dWtGY1AL/cZmP9ZtvjDxzw=";
+    cargoHash = "sha256-v1ggzNoncBVcOiJDQNNKPxYqWASNGjVjLMCXhsIbrVI=";
+    depsExtraArgs = {
+      # crates.io rejects python-requests' default User-Agent on the legacy
+      # /api/v1/crates/.../download endpoint used by fetch-cargo-vendor.
+      preBuild = ''
+        orig_fetch_cargo_vendor_util="$(command -v fetch-cargo-vendor-util)"
+        mkdir -p .nix-cargo-vendor-bin
+        sed '/session = requests.Session()/a\    session.headers.update({"User-Agent": "tiki-nixpkgs codex package update (https://github.com/ioitiki/tiki-nixpkgs)"})' \
+          "$orig_fetch_cargo_vendor_util" \
+          > .nix-cargo-vendor-bin/fetch-cargo-vendor-util
+        chmod +x .nix-cargo-vendor-bin/fetch-cargo-vendor-util
+        export PATH="$PWD/.nix-cargo-vendor-bin:$PATH"
+      '';
+    };
 
     nativeBuildInputs = [
       clang
