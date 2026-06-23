@@ -38,18 +38,18 @@ let
   );
   rawCodex = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "codex";
-    version = "0.139.0";
+    version = "0.142.0";
 
     src = fetchFromGitHub {
       owner = "openai";
       repo = "codex";
       tag = "rust-v${finalAttrs.version}";
-      hash = "sha256-XjzlkBUkBey+P3tFLDYB3ae5oseUfW5tmzhLzqlqj2E=";
+      hash = "sha256-F8wlv0vSuljNFDgIzoeuVxvD0dk90z2FBtpBTMih7AA=";
     };
 
     sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
-    cargoHash = "sha256-8mN4OTRJvt2mBYHQXZS55PSOChLqEIiXwPu2y+2MZ9o=";
+    cargoHash = "sha256-fvEFNE12J6zaLZrN6oQB8X+jXoKPSCWrL17Sl28+7/c=";
     depsExtraArgs = {
       # crates.io rejects python-requests' default User-Agent on the legacy
       # /api/v1/crates/.../download endpoint used by fetch-cargo-vendor.
