@@ -98,7 +98,7 @@ let
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "zed-editor";
-  version = "1.2.6";
+  version = "1.7.2";
 
   outputs = [
     "out"
@@ -111,11 +111,13 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "zed-industries";
     repo = "zed";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-sxjzbmYEZtup8kpKy3+Wdep5GIqa5YNRZFqzoeqrWAM=";
+    hash = "sha256-f4CxfUsOEZQIIf0+v+3nXH4zlM3mPy/eZyzXG1ayiVc=";
   };
 
   patches = [
     ./patches/local-selection-outline.patch
+    ./patches/remove-unstable-cold-path.patch
+    ./patches/remove-unstable-cfg-select.patch
   ];
 
   postPatch = ''
@@ -140,11 +142,25 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   # remove package that has a broken Cargo.toml
   # see: https://github.com/NixOS/nixpkgs/pull/445924#issuecomment-3334648753
-  depsExtraArgs.postBuild = ''
-    rm -r $out/git/*/candle-book/
-  '';
+  depsExtraArgs = {
+    # crates.io rejects python-requests' default User-Agent on the legacy
+    # /api/v1/crates/.../download endpoint used by fetch-cargo-vendor.
+    preBuild = ''
+      orig_fetch_cargo_vendor_util="$(command -v fetch-cargo-vendor-util)"
+      mkdir -p .nix-cargo-vendor-bin
+      sed '/session = requests.Session()/a\    session.headers.update({"User-Agent": "tiki-nixpkgs zed-editor package update (https://github.com/ioitiki/tiki-nixpkgs)"})' \
+        "$orig_fetch_cargo_vendor_util" \
+        > .nix-cargo-vendor-bin/fetch-cargo-vendor-util
+      chmod +x .nix-cargo-vendor-bin/fetch-cargo-vendor-util
+      export PATH="$PWD/.nix-cargo-vendor-bin:$PATH"
+    '';
 
-  cargoHash = "sha256-tJg3uIV/UtAP/S958/1wN/kwLm5P6KZePhF3gWmh1xw=";
+    postBuild = ''
+      rm -rf $out/git/*/candle-book/
+    '';
+  };
+
+  cargoHash = "sha256-QTnDiNFrBl8E6BgFL1HjoJhGfMBUzOoMimkyKdwUcks=";
 
   __structuredAttrs = true;
 
