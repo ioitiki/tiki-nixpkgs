@@ -38,25 +38,34 @@ let
   );
   rawCodex = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "codex";
-    version = "0.144.0";
+    version = "0.147.0";
 
     src = fetchFromGitHub {
       owner = "openai";
       repo = "codex";
       tag = "rust-v${finalAttrs.version}";
-      hash = "sha256-GbLeECsju5jifeVah1xN4HFFHxOKtCj55gl/0ZULj+g=";
+      hash = "sha256-PBxIhfkpL3t7Bjm0PgbWZXTjvSjmb3h0tWbTlBKSFFw=";
     };
 
     sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
-    cargoHash = "sha256-S4dsZXfmKvJItL2XYKyxfhqdCMATEG6oPjrtVRwkuYc=";
+    cargoHash = "sha256-X6tTV5xc+Tk+7SJhYEolD9MxxqwF6puTMnkpMd5g4Js=";
+
     depsExtraArgs = {
       # crates.io rejects python-requests' default User-Agent on the legacy
-      # /api/v1/crates/.../download endpoint used by fetch-cargo-vendor.
+      # /api/v1/crates/.../download endpoint used by fetch-cargo-vendor, and
+      # rate-limits it with 429s that the stock script does not retry.
+      # Download from the static CDN instead (no rate limit, same tarballs)
+      # and retry 429s as defense-in-depth.
       preBuild = ''
         orig_fetch_cargo_vendor_util="$(command -v fetch-cargo-vendor-util)"
         mkdir -p .nix-cargo-vendor-bin
-        sed '/session = requests.Session()/a\    session.headers.update({"User-Agent": "tiki-nixpkgs codex package update (https://github.com/ioitiki/tiki-nixpkgs)"})' \
+        sed \
+          -e '/session = requests.Session()/a\    session.headers.update({"User-Agent": "tiki-nixpkgs codex package update (https://github.com/ioitiki/tiki-nixpkgs)"})' \
+          -e 's|https://crates.io/api/v1/crates/{pkg\["name"\]}/{pkg\["version"\]}/download|https://static.crates.io/crates/{pkg["name"]}/{pkg["name"]}-{pkg["version"]}.crate|' \
+          -e 's/total=5,/total=10,/' \
+          -e 's/backoff_factor=0.5,/backoff_factor=2,/' \
+          -e 's/status_forcelist=\[500, 502, 503, 504\]/status_forcelist=[429, 500, 502, 503, 504]/' \
           "$orig_fetch_cargo_vendor_util" \
           > .nix-cargo-vendor-bin/fetch-cargo-vendor-util
         chmod +x .nix-cargo-vendor-bin/fetch-cargo-vendor-util

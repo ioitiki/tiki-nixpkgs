@@ -27,6 +27,7 @@
         codex = final.callPackage ./packages/codex/package.nix { };
         deepagents = final.callPackage ./packages/deepagents/package.nix { };
         kimi-cli = final.callPackage ./packages/kimi-cli/package.nix { };
+        qwen-code = final.callPackage ./packages/qwen-code/package.nix { };
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         herdr = final.callPackage ./packages/herdr/package.nix { };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
@@ -34,6 +35,7 @@
         zed-editor = final.callPackage ./packages/zed-editor/package.nix { };
         ib-tws = final.callPackage ./packages/ib-tws/package.nix { };
         openshell = final.callPackage ./packages/openshell/package.nix { };
+        orca-ide = final.callPackage ./packages/orca/package.nix { };
       };
 
       packages = forAllSystems (
@@ -51,6 +53,7 @@
             codex
             deepagents
             kimi-cli
+            qwen-code
             flyctl
             herdr
             tradingagents
@@ -58,6 +61,7 @@
             zed-editor
             ib-tws
             openshell
+            orca-ide
             ;
 
           default = pkgs.codex;
