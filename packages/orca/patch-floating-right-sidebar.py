@@ -1,8 +1,10 @@
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 
+IDENTIFIER = rb"[A-Za-z_$][A-Za-z0-9_$]*"
 SIDEBAR_INLINE_CLASSES = b"relative flex-shrink-0 flex flex-row"
 SIDEBAR_OVERLAY_CLASSES = b"absolute inset-y-0 right-0 z-30 flex"
 WORKSPACE_ROW_CLASSES = b"flex flex-row flex-1 min-h-0 overflow-hidden"
@@ -17,6 +19,7 @@ RENDERER_JSX_CALLS = (
 PATCH_REGION_LOOKBEHIND = 512
 PATCH_REGION_LOOKAHEAD = 16384
 WORKTREE_PATCH_REGION_LOOKBEHIND = 98304
+WORKTREE_PATCH_REGION_LOOKAHEAD = 32768
 WEB_WORKSPACE_JSX_CALL = re.compile(
     rb"\(0,(?P<runtime>[A-Za-z_$][A-Za-z0-9_$]*)\.jsxs\)\(\"div\",\{$"
 )
@@ -27,8 +30,23 @@ WEB_STORE_BINDING = re.compile(
     rb"[A-Za-z_$][A-Za-z0-9_$]*\.rightSidebarOpen\)"
 )
 WEB_WORKTREE_TITLE_JSX_CALL = re.compile(
-    rb"\(0,(?P<runtime>[A-Za-z_$][A-Za-z0-9_$]*)\.jsxs\)"
-    rb'\("div",\{className:"flex min-w-0 items-center justify-between gap-2"'
+    rb"\(0,(?P<runtime>" + IDENTIFIER + rb")\.jsxs\)"
+    rb'\("div",\{className:"flex min-w-0 items-center justify-between gap-2",'
+    rb"children:\[\(0,(?P=runtime)\.jsxs\)"
+    rb'\("div",\{className:"flex min-w-0 flex-1 items-center gap-1.5"'
+)
+WEB_PR_NUMBER_VISIBILITY_BINDINGS = re.compile(
+    rb"(?P<inline>" + IDENTIFIER + rb")=!(?P<new_card>" + IDENTIFIER + rb")&&!"
+    rb"(?P<compact_cards>"
+    + IDENTIFIER
+    + rb")&&\((?P<display>"
+    + IDENTIFIER
+    + rb")\|\|(?P<ports>"
+    + IDENTIFIER
+    + rb")\),(?P<trailing>"
+    + IDENTIFIER
+    + rb")=\((?P=new_card)\|\|(?P=compact_cards)\)&&"
+    rb"\((?P=display)\|\|(?P=ports)\)"
 )
 RENDERER_PR_NUMBER_ANCHOR = (
     b"\t\t\t\t\t\t\tshowTitleRowIndicators && titleRowIndicators\n"
@@ -61,8 +79,22 @@ WEB_PR_NUMBER_INSERTION_TEMPLATE = (
     b'{className:"block w-3.5 text-center text-[10px] font-medium leading-none '
     b'text-muted-foreground/80",children:["#",Ke.number]})})'
 )
+WEB_PR_NUMBER_DYNAMIC_INSERTION_TEMPLATE = (
+    b',!__NEW_CARD__&&!__COMPACT_CARDS__&&__REVIEW__&&(0,__RUNTIME__.jsx)("span",'
+    b'{className:"ml-auto shrink-0 pr-1.5",'
+    b'"data-worktree-card-pr-number":"",children:(0,__RUNTIME__.jsxs)("span",'
+    b'{className:"block w-3.5 text-center text-[10px] font-medium leading-none '
+    b'text-muted-foreground/80",children:["#",__REVIEW__.number]})})'
+)
 PR_NUMBER_MARKER = b"data-worktree-card-pr-number"
 EXPECTED_RENDERER_COPIES = 2
+
+
+@dataclass(frozen=True)
+class WebPrNumberPatchContext:
+    anchor: bytes
+    insertion: bytes
+    jsx_calls: tuple[tuple[bytes, bytes], ...]
 
 
 def occurrence_offsets(data: bytes, needle: bytes) -> list[int]:
@@ -74,6 +106,98 @@ def occurrence_offsets(data: bytes, needle: bytes) -> list[int]:
             return offsets
         offsets.append(offset)
         start = offset + len(needle)
+
+
+def discover_web_pr_number_context(data: bytes) -> WebPrNumberPatchContext:
+    title_calls = list(WEB_WORKTREE_TITLE_JSX_CALL.finditer(data))
+    if len(title_calls) != 1:
+        raise SystemExit(
+            "refusing to patch Orca: expected one minified worktree-card title "
+            f"JSX call, found {len(title_calls)}"
+        )
+    title_call = title_calls[0]
+    runtime = title_call.group("runtime")
+    region_start = max(0, title_call.start() - WORKTREE_PATCH_REGION_LOOKBEHIND)
+    region_end = min(len(data), title_call.end() + WORKTREE_PATCH_REGION_LOOKAHEAD)
+    region = data[region_start:region_end]
+    before_title = region[: title_call.start() - region_start]
+
+    visibility_matches = list(WEB_PR_NUMBER_VISIBILITY_BINDINGS.finditer(before_title))
+    if len(visibility_matches) != 1:
+        raise SystemExit(
+            "refusing to patch Orca: expected one minified worktree-card "
+            f"visibility binding, found {len(visibility_matches)}"
+        )
+    visibility = visibility_matches[0]
+
+    trailing_pattern = re.compile(
+        rb"(?P<element>"
+        + IDENTIFIER
+        + rb")="
+        + re.escape(visibility.group("trailing"))
+        + rb"\?\(0,"
+        + re.escape(runtime)
+        + rb'\.jsx\)\("div",\{className:"ml-auto flex shrink-0 items-center gap-1 pr-1.5",children:'
+        + IDENTIFIER
+        + rb"\}\):null"
+    )
+    trailing_matches = list(trailing_pattern.finditer(before_title))
+    if len(trailing_matches) != 1:
+        raise SystemExit(
+            "refusing to patch Orca: expected one minified worktree-card "
+            f"trailing metadata element, found {len(trailing_matches)}"
+        )
+    trailing_element = trailing_matches[0].group("element")
+
+    review_pattern = re.compile(
+        re.escape(visibility.group("display"))
+        + rb"="
+        + IDENTIFIER
+        + rb"\(\{issue:"
+        + IDENTIFIER
+        + rb",linearIssue:"
+        + IDENTIFIER
+        + rb",jiraIssue:"
+        + IDENTIFIER
+        + rb",review:"
+        + re.escape(visibility.group("new_card"))
+        + rb"\?null:(?P<review>"
+        + IDENTIFIER
+        + rb"),comment:"
+    )
+    review_matches = list(review_pattern.finditer(before_title))
+    if len(review_matches) != 1:
+        raise SystemExit(
+            "refusing to patch Orca: expected one minified worktree-card "
+            f"review binding, found {len(review_matches)}"
+        )
+    review = review_matches[0].group("review")
+
+    anchor = b"," + visibility.group("trailing") + b"&&" + trailing_element + b"]})"
+    anchor_offsets = occurrence_offsets(region, anchor)
+    if len(anchor_offsets) != 1:
+        raise SystemExit(
+            "refusing to patch Orca: expected one web worktree-card PR-number "
+            f"anchor, found {len(anchor_offsets)}"
+        )
+
+    insertion = WEB_PR_NUMBER_DYNAMIC_INSERTION_TEMPLATE
+    for placeholder, value in (
+        (b"__NEW_CARD__", visibility.group("new_card")),
+        (b"__COMPACT_CARDS__", visibility.group("compact_cards")),
+        (b"__REVIEW__", review),
+        (b"__RUNTIME__", runtime),
+    ):
+        insertion = insertion.replace(placeholder, value)
+
+    return WebPrNumberPatchContext(
+        anchor=anchor,
+        insertion=insertion,
+        jsx_calls=(
+            (b"(0," + runtime + b".jsx)", runtime + b".jsx"),
+            (b"(0," + runtime + b".jsxs)", runtime + b".jsxs"),
+        ),
+    )
 
 
 def compress_jsx_calls(
