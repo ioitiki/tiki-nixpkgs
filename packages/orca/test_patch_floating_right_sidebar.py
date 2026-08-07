@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 
+sys.dont_write_bytecode = True
 PATCH_PATH = Path(__file__).with_name("patch-floating-right-sidebar.py")
 SPEC = importlib.util.spec_from_file_location("orca_sidebar_patcher", PATCH_PATH)
 assert SPEC is not None and SPEC.loader is not None
@@ -125,6 +126,26 @@ class WebPrNumberContextTests(unittest.TestCase):
             "expected one minified worktree-card review binding, found 0",
         ):
             self.discover(malformed)
+
+    def test_patches_pr_numbers_with_discovered_1_4_176_bindings(self):
+        desktop_syntax_space = b"(0, import_jsx_runtime.jsx)" * 256
+        web_syntax_space = b"(0,n.jsx)" * 256
+        data = bytearray(
+            desktop_syntax_space
+            + patcher.RENDERER_PR_NUMBER_ANCHOR
+            + web_syntax_space
+            + ORCA_1_4_176
+        )
+        original_length = len(data)
+
+        try:
+            patcher.patch_worktree_card_pr_numbers(data)
+        except SystemExit as error:
+            self.fail(str(error))
+
+        self.assertEqual(len(data), original_length)
+        self.assertEqual(data.count(patcher.PR_NUMBER_MARKER), 2)
+        self.assertIn(b'["#",Re.number]', data)
 
 
 if __name__ == "__main__":

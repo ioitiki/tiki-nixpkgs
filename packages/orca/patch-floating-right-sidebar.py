@@ -65,20 +65,6 @@ RENDERER_PR_NUMBER_INSERTION = (
     b"\t\t\t\t\t\t\t}),\n"
     b"\t\t\t\t\t\t\t"
 )
-WEB_PR_NUMBER_ANCHOR = b",mr&&Yo]})"
-WEB_PR_NUMBER_BINDINGS = (
-    b"Ke=Zs?oe:null",
-    b"ur=!w&&!J&&(Pt||et)",
-    b"mr=(w||J)&&(Pt||et)",
-    b"Yo=mr?",
-)
-WEB_PR_NUMBER_INSERTION_TEMPLATE = (
-    b',!w&&!J&&Ke&&(0,__RUNTIME__.jsx)("span",'
-    b'{className:"ml-auto shrink-0 pr-1.5",'
-    b'"data-worktree-card-pr-number":"",children:(0,__RUNTIME__.jsxs)("span",'
-    b'{className:"block w-3.5 text-center text-[10px] font-medium leading-none '
-    b'text-muted-foreground/80",children:["#",Ke.number]})})'
-)
 WEB_PR_NUMBER_DYNAMIC_INSERTION_TEMPLATE = (
     b',!__NEW_CARD__&&!__COMPACT_CARDS__&&__REVIEW__&&(0,__RUNTIME__.jsx)("span",'
     b'{className:"ml-auto shrink-0 pr-1.5",'
@@ -372,44 +358,12 @@ def patch_worktree_card_pr_numbers(data: bytearray) -> None:
         "desktop",
     )
 
-    web_anchor_offsets = occurrence_offsets(bytes(data), WEB_PR_NUMBER_ANCHOR)
-    if len(web_anchor_offsets) != 1:
-        raise SystemExit(
-            "refusing to patch Orca: expected one web worktree-card PR-number "
-            f"anchor, found {len(web_anchor_offsets)}"
-        )
-    web_anchor_offset = web_anchor_offsets[0]
-    web_context = bytes(
-        data[
-            max(
-                0, web_anchor_offset - WORKTREE_PATCH_REGION_LOOKBEHIND
-            ) : web_anchor_offset
-        ]
-    )
-    for binding in WEB_PR_NUMBER_BINDINGS:
-        if web_context.count(binding) != 1:
-            raise SystemExit(
-                "refusing to patch Orca: minified worktree-card PR-number "
-                f"binding changed: {binding.decode()}"
-            )
-    web_title_calls = list(WEB_WORKTREE_TITLE_JSX_CALL.finditer(web_context))
-    if len(web_title_calls) != 1:
-        raise SystemExit(
-            "refusing to patch Orca: expected one minified worktree-card title "
-            f"JSX call, found {len(web_title_calls)}"
-        )
-    web_runtime = web_title_calls[0].group("runtime")
-    web_insertion = WEB_PR_NUMBER_INSERTION_TEMPLATE.replace(
-        b"__RUNTIME__", web_runtime
-    )
+    web_context = discover_web_pr_number_context(bytes(data))
     insert_pr_number_before_anchor(
         data,
-        WEB_PR_NUMBER_ANCHOR,
-        web_insertion,
-        (
-            (b"(0," + web_runtime + b".jsx)", web_runtime + b".jsx"),
-            (b"(0," + web_runtime + b".jsxs)", web_runtime + b".jsxs"),
-        ),
+        web_context.anchor,
+        web_context.insertion,
+        web_context.jsx_calls,
         "web",
     )
 
