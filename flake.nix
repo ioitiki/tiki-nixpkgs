@@ -36,6 +36,7 @@
         ib-tws = final.callPackage ./packages/ib-tws/package.nix { };
         openshell = final.callPackage ./packages/openshell/package.nix { };
         orca-ide = final.callPackage ./packages/orca/package.nix { };
+        origin-cli = final.callPackage ./packages/origin-cli/package.nix { };
       };
 
       packages = forAllSystems (
@@ -62,6 +63,7 @@
             ib-tws
             openshell
             orca-ide
+            origin-cli
             ;
 
           default = pkgs.codex;
