@@ -3,6 +3,7 @@
   stdenv,
   fetchurl,
   autoPatchelfHook,
+  makeWrapper,
   writableTmpDirAsHomeHook,
 }:
 
@@ -33,7 +34,10 @@ stdenv.mkDerivation (finalAttrs: {
 
   sourceRoot = "qwen-code";
 
-  nativeBuildInputs = [ autoPatchelfHook ];
+  nativeBuildInputs = [
+    autoPatchelfHook
+    makeWrapper
+  ];
   buildInputs = [ stdenv.cc.cc.lib ];
 
   dontBuild = true;
@@ -44,6 +48,11 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p "$out"
     cp -a . "$out/"
 
+    mv "$out/bin/qwen" "$out/bin/.qwen-upstream"
+    makeWrapper "$out/node/bin/node" "$out/bin/qwen" \
+      --set QWEN_CODE_LAUNCHER_PATH "$out/bin/qwen" \
+      --add-flags "$out/lib/cli-entry.js"
+
     runHook postInstall
   '';
 
@@ -52,6 +61,12 @@ stdenv.mkDerivation (finalAttrs: {
   installCheckPhase = ''
     runHook preInstallCheck
     "$out/bin/qwen" --version >/dev/null
+
+    qwenProfileBin="$TMPDIR/qwen-profile/bin"
+    mkdir -p "$qwenProfileBin"
+    ln -s "$out/bin/qwen" "$qwenProfileBin/qwen"
+    "$qwenProfileBin/qwen" --version >/dev/null
+
     runHook postInstallCheck
   '';
 

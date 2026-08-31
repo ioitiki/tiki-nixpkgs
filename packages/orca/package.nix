@@ -47,17 +47,17 @@
 
 let
   pname = "orca-ide";
-  version = "1.4.167";
+  version = "1.4.176";
 
   source =
     {
       aarch64-linux = {
         asset = "orca-linux-arm64.AppImage";
-        hash = "sha512-C6xVOJ0Ktq0g8ajYI8tDLEN2a0Zx5bTsBV8GCDEgXuGcdihuOCxLP059dZorNOwGbrGyxMBuI3gEgSRs6S0JzQ=="; # update-script: aarch64-linux
+        hash = "sha512-Ni/EazHG24V7RxRZs31PUQiZp5GIEdMW8cc1bfM6HYNgyQLkT6c7+5kvjODCuFTaKiUPV2d0LBwUBGfPmJoHSw=="; # update-script: aarch64-linux
       };
       x86_64-linux = {
         asset = "orca-linux.AppImage";
-        hash = "sha512-rITr7NODzoeaY8y3yVCu+lqtczKnQMWAu8mowS7Y/2l6LwhptlCOOB+5J17lQwqNVALay1tqaXgfDnDnJBsIJQ=="; # update-script: x86_64-linux
+        hash = "sha512-RlhVY+tD0u8T6UpOT+/tfFd/AHIaD5wlM4A4DB4on2Wfo5BpIM/qppFoZzUYab8dXAHy+H117EFNXmaovJmofA=="; # update-script: x86_64-linux
       };
     }
     .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");

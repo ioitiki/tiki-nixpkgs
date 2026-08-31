@@ -20,22 +20,34 @@
   installShellCompletions ? stdenv.buildPlatform.canExecute stdenv.hostPlatform,
 }:
 let
-  # `rusty_v8` tries to download this archive during the build by default.
-  # Fetch it up front so the derivation stays sandbox-safe.
-  rustyV8ByPlatform = {
+  # Codex enables rusty_v8's pointer-compression sandbox, whose archive and
+  # generated Rust binding are published together by Codex upstream. Fetch the
+  # exact pair up front so the derivation stays sandbox-safe.
+  rustyV8Version = "150.4.0";
+  rustyV8ArtifactsByPlatform = {
     "x86_64-linux" = {
-      url = "https://github.com/denoland/rusty_v8/releases/download/v146.4.0/librusty_v8_release_x86_64-unknown-linux-gnu.a.gz";
-      hash = "sha256-5ktNmeSuKTouhGJEqJuAF4uhA4LBP7WRwfppaPUpEVM=";
+      target = "x86_64-unknown-linux-gnu";
+      archiveHash = "sha256-o1x10fJuapg4haRbM0kKTr5U8FBQVosyuJz7QhswtYM=";
+      bindingHash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
     };
     "aarch64-linux" = {
-      url = "https://github.com/denoland/rusty_v8/releases/download/v146.4.0/librusty_v8_release_aarch64-unknown-linux-gnu.a.gz";
-      hash = "sha256-2/FlsHyBvbBUvARrQ9I+afz3vMGkwbW0d2mDpxBi7Ng=";
+      target = "aarch64-unknown-linux-gnu";
+      archiveHash = "sha256-0VF+7UBUaFNwKbAF1f6ZfsdNXI01H5FrOm3yC30oEbo=";
+      bindingHash = "sha256-dyeCauR5vbZF6Acjn7EtH44uI956bPFvXuWSaQ0dhQY=";
     };
   };
-  rustyV8Archive = fetchurl (
-    rustyV8ByPlatform.${stdenv.hostPlatform.system}
-      or (throw "codex: unsupported platform ${stdenv.hostPlatform.system}")
-  );
+  rustyV8Artifacts =
+    rustyV8ArtifactsByPlatform.${stdenv.hostPlatform.system}
+      or (throw "codex: unsupported platform ${stdenv.hostPlatform.system}");
+  rustyV8ReleaseBase = "https://github.com/openai/codex/releases/download/rusty-v8-v${rustyV8Version}";
+  rustyV8Archive = fetchurl {
+    url = "${rustyV8ReleaseBase}/librusty_v8_ptrcomp_sandbox_release_${rustyV8Artifacts.target}.a.gz";
+    hash = rustyV8Artifacts.archiveHash;
+  };
+  rustyV8Binding = fetchurl {
+    url = "${rustyV8ReleaseBase}/src_binding_ptrcomp_sandbox_release_${rustyV8Artifacts.target}.rs";
+    hash = rustyV8Artifacts.bindingHash;
+  };
   rawCodex = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "codex";
     version = "0.147.0";
@@ -50,6 +62,20 @@ let
     sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
     cargoHash = "sha256-X6tTV5xc+Tk+7SJhYEolD9MxxqwF6puTMnkpMd5g4Js=";
+
+    # Match the primary Linux binaries in Codex's upstream release bundle.
+    # An unrestricted workspace build also compiles internal samples that are
+    # not release artifacts and may not compile under the release profile.
+    cargoBuildFlags = [
+      "--bin"
+      "codex"
+      "--bin"
+      "codex-code-mode-host"
+      "--bin"
+      "codex-responses-api-proxy"
+      "--bin"
+      "bwrap"
+    ];
 
     depsExtraArgs = {
       # crates.io rejects python-requests' default User-Agent on the legacy
@@ -95,6 +121,7 @@ let
     env = {
       LIBCLANG_PATH = "${lib.getLib libclang}/lib";
       RUSTY_V8_ARCHIVE = rustyV8Archive;
+      RUSTY_V8_SRC_BINDING_PATH = rustyV8Binding;
       NIX_CFLAGS_COMPILE = toString (
         lib.optionals stdenv.cc.isGNU [
           "-Wno-error=stringop-overflow"
