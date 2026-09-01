@@ -47,17 +47,17 @@
 
 let
   pname = "orca-ide";
-  version = "1.4.176";
+  version = "1.4.193";
 
   source =
     {
       aarch64-linux = {
         asset = "orca-linux-arm64.AppImage";
-        hash = "sha512-Ni/EazHG24V7RxRZs31PUQiZp5GIEdMW8cc1bfM6HYNgyQLkT6c7+5kvjODCuFTaKiUPV2d0LBwUBGfPmJoHSw=="; # update-script: aarch64-linux
+        hash = "sha512-mcyZstly2C2egN8aMTSQonyFmCb7rE4bf9v0LMJ9j+tsv5TRhJCUFZpTr96yTsdP/zzSkxkLa4KJxJzHVK3ONg=="; # update-script: aarch64-linux
       };
       x86_64-linux = {
         asset = "orca-linux.AppImage";
-        hash = "sha512-RlhVY+tD0u8T6UpOT+/tfFd/AHIaD5wlM4A4DB4on2Wfo5BpIM/qppFoZzUYab8dXAHy+H117EFNXmaovJmofA=="; # update-script: x86_64-linux
+        hash = "sha512-EWfU4htnvWkzZl3VduUuO5ge9wWdpcT1jw1YCilTdkqJHFIybtkphJv/vmlGVbfW8syuNBP99IUi87U63xIiTQ=="; # update-script: x86_64-linux
       };
     }
     .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
@@ -145,11 +145,6 @@ stdenv.mkDerivation {
     mkdir -p $out/bin $out/libexec/orca $out/opt/orca $out/share/applications
     cp -r ${appimageContents}/. $out/opt/orca/
     chmod -R u+w $out/opt/orca
-    # Apply the guarded renderer customizations: keep the right sidebar out of
-    # the workspace flex flow and show each worktree card's PR number above its
-    # colored PR status icon.
-    ${python3}/bin/python3 ${./patch-floating-right-sidebar.py} \
-      $out/opt/orca/resources/app.asar
     # These legacy AppRun compatibility libraries target GTK 2 and are not
     # used when invoking the Electron binary directly.
     rm -rf $out/opt/orca/usr/lib
