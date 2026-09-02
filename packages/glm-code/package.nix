@@ -42,6 +42,13 @@ writeShellApplication {
     export ANTHROPIC_SMALL_FAST_MODEL="$model" # legacy name for the haiku slot
     export CLAUDE_CODE_SUBAGENT_MODEL="$model"
 
+    # Claude Code assumes a 200k window for model ids it does not recognise, so
+    # without this it would auto-compact at a fifth of what GLM actually offers.
+    # 1048576 is the window every mainstream OpenRouter provider reports for this
+    # model; the two that cap at 262144 (Reka, Io Net) are routed around on their
+    # own, as OpenRouter only dispatches to providers that can fit the request.
+    export CLAUDE_CODE_MAX_CONTEXT_TOKENS="''${CLAUDE_CODE_MAX_CONTEXT_TOKENS:-1048576}"
+
     # Background flourishes (session titles, conversation summaries) spend
     # tokens on a model whose id Claude Code does not recognise anyway.
     export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1
@@ -57,7 +64,9 @@ writeShellApplication {
       Anthropic-compatible Messages API, defaulting to z-ai/glm-5.3-flash.
 
       Set GLM_MODEL to run a different OpenRouter model, e.g.
-      `GLM_MODEL=z-ai/glm-5.3 glm-code`. State is kept in ~/.claude-glm rather
+      `GLM_MODEL=z-ai/glm-5.3 glm-code`. If that model's context window differs
+      from GLM 5.3 Flash's 1M, override CLAUDE_CODE_MAX_CONTEXT_TOKENS to match,
+      or Claude Code will auto-compact against the wrong number. State is kept in ~/.claude-glm rather
       than ~/.claude; override with CLAUDE_CONFIG_DIR.
 
       Note that Claude Code's own `/cost` reporting prices tokens against
