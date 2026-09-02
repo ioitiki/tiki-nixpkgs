@@ -18,6 +18,7 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
@@ -48,27 +49,44 @@
             config.allowUnfree = true;
             overlays = [ self.overlays.default ];
           };
+          inherit (nixpkgs) lib;
+          inherit (pkgs.stdenv.hostPlatform) isLinux;
+          isX86Linux = system == "x86_64-linux";
         in
+        # Packages are grouped by the platforms their upstreams actually ship
+        # for. Exposing one on a system it cannot evaluate on breaks `nix flake
+        # check` and the bare `default` attribute for every package beside it.
         {
           inherit (pkgs)
             claude-code
-            codex
             deepagents
             kimi-cli
-            qwen-code
             glm-code
             flyctl
             herdr
             tradingagents
-            warp-oss
             zed-editor
-            ib-tws
-            openshell
-            orca-ide
             origin-cli
             ;
 
-          default = pkgs.codex;
+          default = if isLinux then pkgs.codex else pkgs.glm-code;
+        }
+        # Linux-only upstreams.
+        // lib.optionalAttrs isLinux {
+          inherit (pkgs)
+            codex
+            qwen-code
+            ib-tws
+            orca-ide
+            ;
+        }
+        # Published for x86_64-linux alone; these already failed to evaluate on
+        # aarch64-linux before Darwin was added.
+        // lib.optionalAttrs isX86Linux {
+          inherit (pkgs)
+            warp-oss
+            openshell
+            ;
         }
       );
     };
