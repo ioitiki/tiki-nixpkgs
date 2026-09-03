@@ -1,5 +1,5 @@
 #!/usr/bin/env nix
-#!nix shell nixpkgs#cacert nixpkgs#nodejs nixpkgs#git nixpkgs#nix-update nixpkgs#nix nixpkgs#gnused nixpkgs#findutils nixpkgs#coreutils nixpkgs#bash nixpkgs#home-manager nixpkgs#curl nixpkgs#gnutar nixpkgs#gzip nixpkgs#jq --command bash
+#!nix shell nixpkgs#cacert nixpkgs#cachix nixpkgs#nodejs nixpkgs#git nixpkgs#nix-update nixpkgs#nix nixpkgs#gnused nixpkgs#findutils nixpkgs#coreutils nixpkgs#bash nixpkgs#home-manager nixpkgs#curl nixpkgs#gnutar nixpkgs#gzip nixpkgs#jq --command bash
 
 set -euo pipefail
 
@@ -32,4 +32,7 @@ else
   exit 1
 fi
 
-nix build "$FLAKE_DIR#claude-code" --no-link --accept-flake-config --print-out-paths | cachix push ioitiki
+# glm-code wraps claude-code by store path, so bumping claude-code invalidates
+# the cached wrapper too. Push both or the next `nix run` of glm-code rebuilds it.
+nix build "$FLAKE_DIR#claude-code" "$FLAKE_DIR#glm-code" \
+  --no-link --accept-flake-config --print-out-paths | cachix push ioitiki

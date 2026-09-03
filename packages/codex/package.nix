@@ -50,18 +50,18 @@ let
   };
   rawCodex = rustPlatform.buildRustPackage (finalAttrs: {
     pname = "codex";
-    version = "0.147.0";
+    version = "0.153.0";
 
     src = fetchFromGitHub {
       owner = "openai";
       repo = "codex";
       tag = "rust-v${finalAttrs.version}";
-      hash = "sha256-PBxIhfkpL3t7Bjm0PgbWZXTjvSjmb3h0tWbTlBKSFFw=";
+      hash = "sha256-dSuFpqsMH248F+fdvN0wxMyhqFRHN92FLF7ufUpe0WE=";
     };
 
     sourceRoot = "${finalAttrs.src.name}/codex-rs";
 
-    cargoHash = "sha256-X6tTV5xc+Tk+7SJhYEolD9MxxqwF6puTMnkpMd5g4Js=";
+    cargoHash = "sha256-GG6kOXmCdq+bZLU2ul0DIVL8lDuweayvZvXn6+bcUZw=";
 
     # Match the primary Linux binaries in Codex's upstream release bundle.
     # An unrestricted workspace build also compiles internal samples that are
