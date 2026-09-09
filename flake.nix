@@ -31,6 +31,7 @@
         qwen-code = final.callPackage ./packages/qwen-code/package.nix { };
         glm-code = final.callPackage ./packages/glm-code/package.nix { };
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
+        gato = final.callPackage ./packages/gato/package.nix { };
         herdr = final.callPackage ./packages/herdr/package.nix { };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
         warp-oss = final.callPackage ./packages/warp/package.nix { };
@@ -84,6 +85,7 @@
         # aarch64-linux before Darwin was added.
         // lib.optionalAttrs isX86Linux {
           inherit (pkgs)
+            gato
             warp-oss
             openshell
             ;
