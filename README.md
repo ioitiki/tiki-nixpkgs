@@ -30,7 +30,7 @@ GATO is packaged from the private `chainstarters/gato` release. With a `gh`
 login that can access that repository, import the release and build it:
 
 ```bash
-./packages/gato/update.sh 0.6.11
+./packages/gato/update.sh 0.6.12
 nix build .#gato --accept-flake-config
 nix run .#gato --accept-flake-config
 ```

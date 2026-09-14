@@ -19,13 +19,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gato";
-  version = "0.6.11";
+  version = "0.6.12";
 
   # The upstream release is private. Download with gh outside the sandbox;
   # credentials must never become part of a derivation or the Nix store.
   src = requireFile {
     name = "GATO_${finalAttrs.version}_amd64.deb";
-    hash = "sha256-Bh4q+8tTkBrSC4Te4dg2AtKk5SYhfrM/4ygwNyWgPBY=";
+    hash = "sha256-xEdg6mwiDUnC4g68mM+Vi4p6k5GoLR0U0FNd14I3RK0=";
     message = ''
       GATO requires access to the private chainstarters/gato GitHub repository.
       From the tiki-nixpkgs checkout, download and import the pinned release:
