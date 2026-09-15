@@ -24,6 +24,20 @@ nix profile install github:ioitiki/personal-packages#codex --accept-flake-config
 If the GitHub repository uses a different owner or name, replace
 `github:ioitiki/personal-packages` with the published flake URL.
 
+## Factory CLI
+
+The `factory` package provides Factory's `droid` command:
+
+```bash
+nix run .#factory --accept-flake-config -- --version
+nix run .#factory --accept-flake-config
+```
+
+Run `./packages/factory/update.sh` to pin the latest official release and
+checksums, then build it. Droid's built-in updater is disabled so Nix manages
+the installed version. The package supports x86-64 Linux, ARM64 Linux, and
+Apple Silicon macOS.
+
 ## GATO desktop (x86-64 Linux)
 
 GATO is packaged from the private `chainstarters/gato` release. With a `gh`

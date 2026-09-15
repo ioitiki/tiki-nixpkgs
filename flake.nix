@@ -30,6 +30,7 @@
         kimi-cli = final.callPackage ./packages/kimi-cli/package.nix { };
         qwen-code = final.callPackage ./packages/qwen-code/package.nix { };
         glm-code = final.callPackage ./packages/glm-code/package.nix { };
+        factory = final.callPackage ./packages/factory/package.nix { };
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         gato = final.callPackage ./packages/gato/package.nix { };
         herdr = final.callPackage ./packages/herdr/package.nix { };
@@ -63,6 +64,7 @@
             deepagents
             kimi-cli
             glm-code
+            factory
             flyctl
             herdr
             tradingagents
