@@ -41,6 +41,7 @@
         openshell = final.callPackage ./packages/openshell/package.nix { };
         orca-ide = final.callPackage ./packages/orca/package.nix { };
         origin-cli = final.callPackage ./packages/origin-cli/package.nix { };
+        zkool = final.callPackage ./packages/zkool/package.nix { };
       };
 
       packages = forAllSystems (
@@ -81,6 +82,7 @@
             qwen-code
             ib-tws
             orca-ide
+            zkool
             ;
         }
         # Published for x86_64-linux alone; these already failed to evaluate on

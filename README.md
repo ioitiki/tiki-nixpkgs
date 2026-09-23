@@ -24,6 +24,20 @@ nix profile install github:ioitiki/personal-packages#codex --accept-flake-config
 If the GitHub repository uses a different owner or name, replace
 `github:ioitiki/personal-packages` with the published flake URL.
 
+## Zkool desktop (Linux)
+
+The `zkool` package provides the Zcash wallet's graphical desktop app,
+including its application-menu entry and icons:
+
+```bash
+nix build .#zkool --accept-flake-config
+nix run .#zkool --accept-flake-config
+```
+
+It packages the official Debian releases for x86-64 and ARM64 Linux.
+Run `./packages/zkool/update.sh` to verify the latest release artifacts against
+GitHub's SHA-256 digests, update the pinned version and hashes, and build it.
+
 ## Factory CLI
 
 The `factory` package provides Factory's `droid` command:
