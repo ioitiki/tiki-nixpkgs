@@ -42,6 +42,7 @@
         orca-ide = final.callPackage ./packages/orca/package.nix { };
         origin-cli = final.callPackage ./packages/origin-cli/package.nix { };
         zkool = final.callPackage ./packages/zkool/package.nix { };
+        thinkorswim = final.callPackage ./packages/thinkorswim/package.nix { };
       };
 
       packages = forAllSystems (
@@ -92,6 +93,7 @@
             gato
             warp-oss
             openshell
+            thinkorswim
             ;
         }
       );

@@ -38,6 +38,28 @@ It packages the official Debian releases for x86-64 and ARM64 Linux.
 Run `./packages/zkool/update.sh` to verify the latest release artifacts against
 GitHub's SHA-256 digests, update the pinned version and hashes, and build it.
 
+## thinkorswim desktop (x86-64 Linux)
+
+```bash
+nix build .#thinkorswim --accept-flake-config
+nix run .#thinkorswim --accept-flake-config
+```
+
+The package pins Schwab's Linux bootstrap installer and supplies Zulu Java 21
+and the native libraries through an FHS environment. On first launch it
+installs into `~/thinkorswim`; Schwab's updater maintains that writable
+installation. Browser settings live in `~/.thinkorswim`. The Nix package
+version describes the bootstrap installer, not the automatically updated app.
+
+Chromium's sandbox remains enabled. The host must allow unprivileged user
+namespaces (`unshare -Ur true`), which Flatpak blocks for this application.
+This FHS environment supplies a Linux filesystem layout; it is not an
+application security sandbox.
+
+To refresh the bootstrap installer, inspect the official download and update
+its SHA-256 hash in `packages/thinkorswim/package.nix`. Rebuilding the wrapper
+does not replace an existing writable installation or its settings.
+
 ## Factory CLI
 
 The `factory` package provides Factory's `droid` command:
