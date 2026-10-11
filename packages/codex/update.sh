@@ -1,5 +1,5 @@
 #!/usr/bin/env nix
-#!nix shell nixpkgs#cacert nixpkgs#git nixpkgs#nix-update nixpkgs#nix nixpkgs#gnused nixpkgs#coreutils nixpkgs#bash nixpkgs#home-manager nixpkgs#curl nixpkgs#jq --command bash
+#!nix shell nixpkgs#cacert nixpkgs#git nixpkgs#nix-update nixpkgs#nix nixpkgs#gnused nixpkgs#gnugrep nixpkgs#coreutils nixpkgs#bash nixpkgs#home-manager nixpkgs#curl nixpkgs#jq --command bash
 
 set -euo pipefail
 
@@ -22,5 +22,8 @@ echo "Latest codex version: $version"
 
 # nix-update handles version, src hash, and cargoHash for Rust packages
 nix-update --flake codex --version="$version" --version-regex '^rust-v(\d+\.\d+\.\d+)$'
+
+# Re-pin the rusty_v8 archive/binding if the new release bumped the v8 crate.
+bash "$SCRIPT_DIR/update-librusty.sh"
 
 nix build "$FLAKE_DIR#codex" --no-link --accept-flake-config --print-out-paths | cachix push ioitiki
