@@ -74,6 +74,21 @@ checksums, then build it. Droid's built-in updater is disabled so Nix manages
 the installed version. The package supports x86-64 Linux, ARM64 Linux, and
 Apple Silicon macOS.
 
+## Muse Code
+
+The `muse-code` package provides Meta's `muse` coding agent:
+
+```bash
+nix run .#muse-code --accept-flake-config -- --version
+nix run .#muse-code --accept-flake-config
+```
+
+Run `./packages/muse-code/update.sh` to pin the stable channel's current
+release and checksums, then build it. The package installs the release binary
+itself rather than Meta's self-updating launcher script, so Nix manages the
+installed version. The package supports x86-64 Linux, ARM64 Linux, and Apple
+Silicon macOS.
+
 ## GATO desktop (x86-64 Linux)
 
 GATO is packaged from the private `chainstarters/gato` release. With a `gh`

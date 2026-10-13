@@ -28,6 +28,7 @@
         codex = final.callPackage ./packages/codex/package.nix { };
         deepagents = final.callPackage ./packages/deepagents/package.nix { };
         kimi-cli = final.callPackage ./packages/kimi-cli/package.nix { };
+        muse-code = final.callPackage ./packages/muse-code/package.nix { };
         qwen-code = final.callPackage ./packages/qwen-code/package.nix { };
         glm-code = final.callPackage ./packages/glm-code/package.nix { };
         factory = final.callPackage ./packages/factory/package.nix { };
@@ -65,6 +66,7 @@
             claude-code
             deepagents
             kimi-cli
+            muse-code
             glm-code
             factory
             flyctl
