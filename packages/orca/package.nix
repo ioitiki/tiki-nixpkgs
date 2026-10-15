@@ -36,6 +36,7 @@
   nss,
   pango,
   python3,
+  runCommand,
   stdenv,
   systemd,
   wayland,
@@ -47,17 +48,17 @@
 
 let
   pname = "orca-ide";
-  version = "1.4.209";
+  version = "1.4.224";
 
   source =
     {
       aarch64-linux = {
         asset = "orca-linux-arm64.AppImage";
-        hash = "sha512-iNnp6uFVU5y5HPoNmIDbZQ8cppdHzrK7vGcEZamYq9v9k+us42J46yV3Z52nFxEIIU+NwaSoIc4OZmFwKbq2sg=="; # update-script: aarch64-linux
+        hash = "sha512-7D7oEngSSQWkEJdP9zRJDUsN23+mjDhbvMkNMo/Lz7rnWzVdBRC3oBVaKvPTI4+KGAHJBHH4hi1pehbP0L58tg=="; # update-script: aarch64-linux
       };
       x86_64-linux = {
         asset = "orca-linux.AppImage";
-        hash = "sha512-jqPpacbpVtJ9cysaE202CniaR3FwRCGhUKLbHIrCDxLJmAxPH4yUbDAIFFhgu8Y48AWyE3iNgazE0Vs7+CdnwA=="; # update-script: x86_64-linux
+        hash = "sha512-hB+FDeA2Nv32O5OFoL5ZpUd5w0KTHeXI8h1wCKIBXnH/hLdbgToCJryvfYo0hW0hU99yl+z9xGA9SIDBqtHx2w=="; # update-script: x86_64-linux
       };
     }
     .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
@@ -70,6 +71,15 @@ let
   appimageContents = appimageTools.extractType2 {
     inherit pname version src;
   };
+
+  # orcad-template carries prebuilt daemon payloads for every platform Orca
+  # supports (including musl, macOS and Windows), and Orca verifies each file
+  # against orcad-template.json before using it. autoPatchelf and
+  # patchShebangs would rewrite those files, so copy the template verbatim in
+  # a derivation that has no fixup phase and link it into the app.
+  orcadTemplate = runCommand "${pname}-orcad-template-${version}" { } ''
+    cp -r ${appimageContents}/resources/orcad-template $out
+  '';
 
   typelibDependencies = map (lib.getOutput "out") [
     at-spi2-core
@@ -148,6 +158,8 @@ stdenv.mkDerivation {
     # These legacy AppRun compatibility libraries target GTK 2 and are not
     # used when invoking the Electron binary directly.
     rm -rf $out/opt/orca/usr/lib
+    rm -r $out/opt/orca/resources/orcad-template
+    ln -s ${orcadTemplate} $out/opt/orca/resources/orcad-template
 
     cp $out/opt/orca/orca-ide.desktop \
       $out/share/applications/orca-ide.desktop
