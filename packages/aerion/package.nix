@@ -151,6 +151,13 @@ buildGoModule {
       "$out/share/metainfo/io.github.hkdb.Aerion.metainfo.xml"
   '';
 
+  preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+    # WebKitGTK's DMABUF renderer triggers Wayland protocol error 71 on NVIDIA GPUs.
+    gappsWrapperArgs+=(
+      --set-default WEBKIT_DISABLE_DMABUF_RENDERER 1
+    )
+  '';
+
   postFixup = lib.optionalString (stdenv.hostPlatform.isLinux && withOAuth) ''
     ln -s ${aerion-creds}/bin/aerion-creds "$out/bin/aerion-creds"
   '';
