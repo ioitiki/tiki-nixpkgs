@@ -24,6 +24,7 @@
     in
     {
       overlays.default = final: prev: {
+        aerion = final.callPackage ./packages/aerion/package.nix { };
         claude-code = final.callPackage ./packages/claude-code/package.nix { };
         codex = final.callPackage ./packages/codex/package.nix { };
         deepagents = final.callPackage ./packages/deepagents/package.nix { };
@@ -81,6 +82,7 @@
         # Linux-only upstreams.
         // lib.optionalAttrs isLinux {
           inherit (pkgs)
+            aerion
             codex
             qwen-code
             ib-tws

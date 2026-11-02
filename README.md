@@ -108,3 +108,18 @@ Credentials stay outside Nix builds. Repeat the import on each build machine.
 The package includes the desktop entry, icons, Whisper executable, and speech
 model. Version 0.6.11 connects to GATO's dev backend; Workspaces can be enabled
 under Sidebar navigation in Settings.
+
+## Aerion desktop (Linux)
+
+The `aerion` package builds the [Aerion](https://github.com/hkdb/aerion) email
+client from source (Wails + Svelte) and bundles upstream's OAuth credentials
+shim by default so Gmail and Microsoft 365 OAuth work out of the box:
+
+```bash
+nix build .#aerion --accept-flake-config
+nix run .#aerion --accept-flake-config
+```
+
+Run `./packages/aerion/update.sh` to update the pinned release version, frontend
+npm dependencies hash, Go vendor hash, and OAuth shim hashes for `x86_64-linux`
+and `aarch64-linux`.
