@@ -123,3 +123,22 @@ nix run .#aerion --accept-flake-config
 Run `./packages/aerion/update.sh` to update the pinned release version, frontend
 npm dependencies hash, Go vendor hash, and OAuth shim hashes for `x86_64-linux`
 and `aarch64-linux`.
+
+## Infinity Code
+
+The `infinity-code` package builds [Infinity Code](https://infinity.hydro.run/docs/infinity-code/overview/)
+from [`hydro-project/infinity`](https://github.com/hydro-project/infinity), including:
+- `infinity` (`infinity-agent-cli`, with `--features bundled-web` for the local web UI on `http://127.0.0.1:8080`)
+- `infinity-daemon`
+- `infinity-provider-bedrock` (AWS Bedrock model provider)
+- `sandbox-local`, `rap-steering-server`, and `rap-github-event-poller` RAP servers
+
+```bash
+nix build .#infinity-code --accept-flake-config
+nix run .#infinity-code --accept-flake-config
+```
+
+On first launch, the wrapper seeds `~/.infinity/providers.json` (`infinity-provider-bedrock`)
+and `~/.infinity/rap.json` (`sandbox-local`) if they do not exist yet, and puts
+`ripgrep`, `git`, `jj` (`jujutsu`), and `bwrap` (`bubblewrap` on Linux) on `PATH`.
+Run `./packages/infinity-code/update.sh` to update to the latest upstream commit.

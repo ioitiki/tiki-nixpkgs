@@ -36,6 +36,7 @@
         flyctl = final.callPackage ./packages/flyctl/package.nix { flyctl = prev.flyctl; };
         gato = final.callPackage ./packages/gato/package.nix { };
         herdr = final.callPackage ./packages/herdr/package.nix { };
+        infinity-code = final.callPackage ./packages/infinity-code/package.nix { };
         tradingagents = final.callPackage ./packages/tradingagents/package.nix { };
         warp-oss = final.callPackage ./packages/warp/package.nix { };
         zed-editor = final.callPackage ./packages/zed-editor/package.nix { };
@@ -72,6 +73,7 @@
             factory
             flyctl
             herdr
+            infinity-code
             tradingagents
             zed-editor
             origin-cli
