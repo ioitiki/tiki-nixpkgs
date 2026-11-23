@@ -1,52 +1,72 @@
 #!/usr/bin/env nix
-#!nix shell nixpkgs#bash nixpkgs#cacert nixpkgs#coreutils nixpkgs#gh nixpkgs#gnused nixpkgs#jq nixpkgs#nix --command bash
+#!nix shell nixpkgs#bash nixpkgs#cacert nixpkgs#coreutils nixpkgs#curl nixpkgs#gnugrep nixpkgs#gnused nixpkgs#nix --command bash
+# shellcheck shell=bash
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FLAKE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PACKAGE_NIX="$SCRIPT_DIR/package.nix"
-REPO="chainstarters/gato"
+BASE_URL="https://releases.gato-chainstarters.com"
 
 if [[ $# -gt 1 ]]; then
-  echo "Usage: $0 [version] (defaults to the latest release)" >&2
+  echo "Usage: $0 [version-build] (defaults to the offered release)" >&2
   exit 1
 fi
 
-release="latest"
 if [[ $# -eq 1 ]]; then
-  version="${1#v}"
-  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "ERROR: expected a release version such as 0.6.11" >&2
+  if [[ ! "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?-[1-9][0-9]*$ ]]; then
+    echo "ERROR: expected <version>-<build>, e.g. 0.1.3-1649" >&2
     exit 1
   fi
-  release="tags/v$version"
+  record_url="$BASE_URL/gato-$1-linux-x86_64.release"
+else
+  record_url="$BASE_URL/gato-linux-x86_64.release"
 fi
 
-release_json=$(gh api "repos/$REPO/releases/$release")
-version=$(jq -er '.tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")) | ltrimstr("v")' <<<"$release_json")
-asset="GATO_${version}_amd64.deb"
-digest=$(jq -er --arg asset "$asset" '
-  [.assets[] | select(.name == $asset)]
-  | select(length == 1) | .[0].digest
-  | select(test("^sha256:[0-9a-f]{64}$"))
-' <<<"$release_json")
-sha256="${digest#sha256:}"
+record="$(curl -fsSL "$record_url")"
 
-download_dir=$(mktemp -d)
-trap 'rm -rf "$download_dir"' EXIT
+field() {
+  local name="$1" count
+  count="$(grep -c "^${name}=" <<<"$record" || true)"
+  if [[ "$count" != "1" ]]; then
+    echo "ERROR: release record from $record_url has $count lines for $name" >&2
+    exit 1
+  fi
+  sed -n "s/^${name}=//p" <<<"$record"
+}
 
-echo "Downloading GATO $version using your GitHub login..."
-gh release download "v$version" --repo "$REPO" --pattern "$asset" --dir "$download_dir"
-printf '%s  %s\n' "$sha256" "$download_dir/$asset" | sha256sum --check
+release_version="$(field version)"
+build="$(field build)"
+tar_sha256="$(field tar_sha256)"
 
-# Import even when the version is unchanged: requireFile needs this on each
-# machine, and the source may have been garbage-collected since the last build.
-nix-store --add-fixed sha256 "$download_dir/$asset"
-hash=$(nix hash convert --hash-algo sha256 --to sri "$sha256")
+if [[ ! "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || \
+   [[ ! "$build" =~ ^[1-9][0-9]*$ ]] || \
+   [[ ! "$tar_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "ERROR: invalid release record from $record_url" >&2
+  exit 1
+fi
 
+full_version="${release_version}-${build}"
+asset="gato-${full_version}-linux-x86_64.tar.gz"
+url="${BASE_URL}/${asset}"
+hash="$(nix hash convert --hash-algo sha256 --to sri "$tar_sha256")"
+
+nix store prefetch-file --json --name "$asset" --expected-hash "$hash" "$url" >/dev/null
+
+updated="$(mktemp "$SCRIPT_DIR/.package.nix.XXXXXX")"
+trap 'rm -f "$updated"' EXIT
+cp --preserve=mode "$PACKAGE_NIX" "$updated"
 sed -i -E \
-  -e "s|^  version = \"[^\"]+\";|  version = \"$version\";|" \
+  -e "s|^  version = \"[^\"]+\";|  version = \"$full_version\";|" \
   -e "s|^    hash = \"[^\"]+\";|    hash = \"$hash\";|" \
-  "$PACKAGE_NIX"
+  "$updated"
 
-echo "GATO $version is ready. Build with: nix build .#gato --accept-flake-config"
+if cmp -s "$PACKAGE_NIX" "$updated"; then
+  echo "gato is already at $full_version with verified release archive."
+else
+  mv "$updated" "$PACKAGE_NIX"
+  echo "Updated gato to $full_version."
+fi
+
+nix build "$FLAKE_DIR#gato" --no-link --accept-flake-config --print-out-paths

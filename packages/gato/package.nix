@@ -1,98 +1,116 @@
 {
   lib,
   stdenv,
-  requireFile,
+  fetchurl,
   autoPatchelfHook,
-  dpkg,
+  makeWrapper,
+  patchelf,
   wrapGAppsHook3,
   cairo,
-  dbus,
   gdk-pixbuf,
   glib,
   gst_all_1,
   gtk3,
+  libayatana-appindicator,
+  libpulseaudio,
   libsoup_3,
-  pango,
+  onnxruntime,
+  openssl,
+  pipewire,
   wayland,
   webkitgtk_4_1,
+  xdotool,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gato";
-  version = "0.6.12";
+  version = "0.1.3-1649";
 
-  # The upstream release is private. Download with gh outside the sandbox;
-  # credentials must never become part of a derivation or the Nix store.
-  src = requireFile {
-    name = "GATO_${finalAttrs.version}_amd64.deb";
-    hash = "sha256-xEdg6mwiDUnC4g68mM+Vi4p6k5GoLR0U0FNd14I3RK0=";
-    message = ''
-      GATO requires access to the private chainstarters/gato GitHub repository.
-      From the tiki-nixpkgs checkout, download and import the pinned release:
-
-        ./packages/gato/update.sh ${finalAttrs.version}
-
-      Then run: nix build .#gato --accept-flake-config
-    '';
+  src = fetchurl {
+    url = "https://releases.gato-chainstarters.com/gato-${finalAttrs.version}-linux-x86_64.tar.gz";
+    hash = "sha256-wy/XJl8oxs7S0aCTnKygZVIZSmT4mWpWA/J2U1kzV1U=";
   };
 
   nativeBuildInputs = [
     autoPatchelfHook
-    dpkg
+    makeWrapper
+    patchelf
     wrapGAppsHook3
   ];
 
   buildInputs = [
     cairo
-    dbus
     gdk-pixbuf
     glib
     # WebKit loads media elements at runtime, including appsink from base.
     gst_all_1.gst-plugins-base
     gst_all_1.gst-plugins-good
     gtk3
+    libpulseaudio
     libsoup_3
-    pango
+    openssl
     stdenv.cc.cc.lib
     wayland
     webkitgtk_4_1
+    xdotool
   ];
-
-  unpackPhase = ''
-    runHook preUnpack
-    dpkg-deb --extract "$src" .
-    runHook postUnpack
-  '';
 
   dontConfigure = true;
   dontBuild = true;
+  dontWrapGApps = true;
 
   installPhase = ''
     runHook preInstall
 
-    mkdir -p "$out"
-    cp -r usr/bin usr/lib usr/share "$out/"
-    # Whisper searches share/gato relative to the executable on Linux.
-    mkdir -p "$out/share/gato"
-    ln -s "$out/lib/GATO/_up_/_up_/whisper-runtime" "$out/share/gato/whisper-runtime"
-    substituteInPlace "$out/share/applications/GATO.desktop" \
-      --replace-fail 'Exec=gato-tauri' "Exec=$out/bin/gato-tauri"
+    mkdir -p \
+      "$out/bin" \
+      "$out/lib/gato-desktop" \
+      "$out/share/applications" \
+      "$out/share/doc/gato-desktop"
+
+    # Dioxus resolves its bundled assets relative to the real executable.
+    cp gato-desktop "$out/lib/gato-desktop/gato-desktop"
+    chmod 755 "$out/lib/gato-desktop/gato-desktop"
+    cp -r assets "$out/lib/gato-desktop/assets"
+
+    # Ubuntu 24.04 links libxdo.so.3 while newer nixpkgs ships xdotool 4
+    # (libxdo.so.4), which exports the same xdo_new/xdo_free/xdo_send_* symbols.
+    if [ ! -e "${xdotool}/lib/libxdo.so.3" ] && [ -e "${xdotool}/lib/libxdo.so.4" ]; then
+      patchelf --replace-needed libxdo.so.3 libxdo.so.4 "$out/lib/gato-desktop/gato-desktop"
+    fi
+
+    for size in 16 32 48 64 128 256 512; do
+      icon_dir="$out/share/icons/hicolor/''${size}x''${size}/apps"
+      mkdir -p "$icon_dir"
+      cp "icons/icon-''${size}.png" "$icon_dir/gato-desktop.png"
+    done
+
+    cp -r notices/* "$out/share/doc/gato-desktop/"
+
+    cp gato-desktop.desktop "$out/share/applications/gato-desktop.desktop"
+    substituteInPlace "$out/share/applications/gato-desktop.desktop" \
+      --replace-fail 'Exec=gato-desktop' "Exec=$out/bin/gato-desktop"
 
     runHook postInstall
   '';
 
-  postFixup = ''
-    ln -s gato-tauri "$out/bin/gato"
+  preFixup = ''
+    makeWrapper "$out/lib/gato-desktop/gato-desktop" "$out/bin/gato-desktop" \
+      "''${gappsWrapperArgs[@]}" \
+      --set GATO_AUTOSTART_EXE "$out/bin/gato-desktop" \
+      --set ORT_DYLIB_PATH "${onnxruntime}/lib/libonnxruntime.so" \
+      --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ libayatana-appindicator ]}" \
+      --suffix PATH : "${lib.makeBinPath [ pipewire ]}"
+    ln -s gato-desktop "$out/bin/gato"
   '';
 
   passthru.updateScript = ./update.sh;
 
   meta = {
-    description = "GATO desktop client for workspaces, repositories, and agents";
-    homepage = "https://github.com/chainstarters/gato";
-    changelog = "https://github.com/chainstarters/gato/releases/tag/v${finalAttrs.version}";
+    description = "The gato-os desktop client";
+    homepage = "https://releases.gato-chainstarters.com/";
     license = lib.licenses.unfree;
-    mainProgram = "gato";
+    mainProgram = "gato-desktop";
     platforms = [ "x86_64-linux" ];
     hydraPlatforms = [ ];
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];

@@ -91,23 +91,21 @@ Silicon macOS.
 
 ## GATO desktop (x86-64 Linux)
 
-GATO is packaged from the private `chainstarters/gato` release. With a `gh`
-login that can access that repository, import the release and build it:
+GATO (`gato-desktop`) is packaged from the public `gato-os` Linux release
+tarball at `https://releases.gato-chainstarters.com/`:
 
 ```bash
-./packages/gato/update.sh 0.6.12
+./packages/gato/update.sh
 nix build .#gato --accept-flake-config
 nix run .#gato --accept-flake-config
 ```
 
-Run `./packages/gato/update.sh` without a version to update to the latest
-release. The script verifies GitHub's SHA-256 digest and imports the download
-into the local Nix store; it also works when the pinned version is unchanged.
-Credentials stay outside Nix builds. Repeat the import on each build machine.
-
-The package includes the desktop entry, icons, Whisper executable, and speech
-model. Version 0.6.11 connects to GATO's dev backend; Workspaces can be enabled
-under Sidebar navigation in Settings.
+Run `./packages/gato/update.sh` (or pass `<version>-<build>`, e.g. `0.1.3-1649`)
+to read the release record, verify the tarball's SHA-256, update `package.nix`,
+and build it. The wrapper provides GTK/WebKitGTK runtime paths, nixpkgs'
+ONNX Runtime (`ORT_DYLIB_PATH`), `libayatana-appindicator` for the system tray,
+`pipewire` (`pw-record`) for meeting capture, and `GATO_AUTOSTART_EXE` so login
+autostart invokes the wrapped binary.
 
 ## Aerion desktop (Linux)
 
