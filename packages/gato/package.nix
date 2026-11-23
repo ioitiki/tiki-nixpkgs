@@ -24,11 +24,11 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "gato";
-  version = "0.1.3-1649";
+  version = "0.1.3-1650";
 
   src = fetchurl {
     url = "https://releases.gato-chainstarters.com/gato-${finalAttrs.version}-linux-x86_64.tar.gz";
-    hash = "sha256-wy/XJl8oxs7S0aCTnKygZVIZSmT4mWpWA/J2U1kzV1U=";
+    hash = "sha256-k8v5Nnz3w/2vpofZYL+TjtHNfOjDSgTZe/IV1qHbNNo=";
   };
 
   nativeBuildInputs = [
